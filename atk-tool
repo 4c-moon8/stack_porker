@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stack Poker Calc - HP Edition</title>
+    <style>
+        :root { 
+            --primary: #2c3e50; --bg: #f0f2f5; --win: #3498db; --lose: #e74c3c; --draw: #7f8c8d;
+            --heart: #e74c3c; --diamond: #f1c40f; --spade: #3498db; --club: #27ae60;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--primary); margin: 0; padding: 8px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        .hp-container { display: flex; justify-content: center; margin-bottom: 10px; }
+        .hp-box { width: 200px; background: #fff; padding: 15px; border-radius: 12px; text-align: center; border: 2px solid #ddd; }
+        .hp-label { font-size: 0.8rem; font-weight: bold; color: #7f8c8d; }
+        .hp-value { font-size: 2.2rem; font-weight: bold; display: block; margin: 5px 0; color: var(--primary); }
+        .hp-input-group { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 8px; border-top: 1px solid #eee; padding-top: 8px; }
+        .hp-input { width: 70px; font-size: 0.8rem; text-align: center; }
+
+        .calc-panel { background: #2c3e50; color: white; padding: 12px; border-radius: 12px; }
+        .score-row { display: flex; justify-content: space-between; align-items: center; }
+        .total-score { font-size: 2.2rem; font-weight: bold; color: #f1c40f; }
+        .optimization-tag { font-size: 0.6rem; background: #f1c40f; color: #2c3e50; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 8px; font-weight: bold; }
+        .breakdown { font-size: 0.8rem; color: #bdc3c7; margin-top: 5px; border-top: 1px solid #444; padding-top: 10px; line-height: 1.8; }
+        .bd-item { margin-bottom: 6px; }
+        .bd-label { font-weight: bold; color: #fff; margin-right: 4px; }
+        .bd-content { color: #bdc3c7; }
+
+        .damage-calc { background: #fff; padding: 12px; border-radius: 12px; margin-top: 8px; border: 1px solid #ddd; text-align: center; }
+        .input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; text-align: left; }
+        .input-group label { font-size: 0.75rem; flex: 1; }
+        .input-group input { width: 70px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        
+        .damage-result { font-weight: bold; font-size: 1.1rem; border-top: 1px solid #eee; padding: 8px 0; min-height: 1.5em; }
+        
+        .apply-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 5px; }
+        .apply-btn:active { opacity: 0.8; }
+
+        .section-title { font-size: 0.8rem; font-weight: bold; padding: 4px 10px; background: #ddd; border-radius: 4px; display: block; margin-top: 10px; }
+        .card-selector { display: grid; grid-template-columns: repeat(13, 1fr); gap: 2px; margin-top: 5px; background: #fff; padding: 5px; border-radius: 8px; overflow-x: auto; }
+        .card-btn { aspect-ratio: 1 / 1.4; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid #eee; border-radius: 3px; font-size: 0.65rem; font-weight: bold; cursor: pointer; }
+        .card-btn.disabled { opacity: 0.1; filter: grayscale(1); }
+        .s-heart { color: var(--heart); border-color: var(--heart); }
+        .s-diamond { color: var(--diamond); border-color: var(--diamond); }
+        .s-spade { color: var(--spade); border-color: var(--spade); }
+        .s-club { color: var(--club); border-color: var(--club); }
+
+        .field { display: flex; flex-wrap: wrap; gap: 6px; min-height: 80px; border: 2px dashed #ccc; padding: 8px; border-radius: 8px; margin-top: 5px; background: #fafafa; }
+        .field-card { width: calc(25% - 5px); background: #fff; border: 2px solid #333; border-radius: 6px; padding: 5px 2px; position: relative; text-align: center; }
+        .field-card.f-heart { border-color: var(--heart); }
+        .field-card.f-diamond { border-color: var(--diamond); }
+        .field-card.f-spade { border-color: var(--spade); }
+        .field-card.f-club { border-color: var(--club); }
+        .field-card .card-name { font-size: 1rem; font-weight: bold; display: block; }
+        .field-card select { width: 95%; font-size: 0.6rem; }
+        .remove-btn { position: absolute; top: -8px; right: -8px; background: #333; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; }
+
+        .footer-btns { display: flex; gap: 5px; margin-top: 10px; }
+        .reset-btn { flex: 1; padding: 10px; background: #95a5a6; color: white; border: none; border-radius: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="hp-container">
+        <div class="hp-box" id="my-hp-box">
+            <div class="hp-label">自分 HP</div>
+            <div class="hp-value" id="my-hp">100</div>
+            <div class="hp-input-group">
+                <span style="font-size: 0.6rem; color: #999;">最大HP設定</span>
+                <input type="number" id="my-hp-init" class="hp-input" value="100" onchange="resetHP()">
+            </div>
+        </div>
+    </div>
+
+    <div class="calc-panel">
+        <div class="score-row">
+            <div>自分の点数 <span class="optimization-tag" id="opt-tag" style="display:none;">AUTO OPTIMIZED</span></div>
+            <div class="total-score" id="total-display">0</div>
+        </div>
+        <div class="breakdown" id="breakdown-display">カードを選択してください</div>
+    </div>
+
+    <div class="damage-calc">
+        <div class="input-group"><label>周回数</label><input type="number" id="lap" value="1" min="1" onchange="calculate()"></div>
+        <div class="input-group"><label>相手の点数</label><input type="number" id="enemy-score" value="0" oninput="calculate()"></div>
+        <div id="damage-display" class="damage-result"></div>
+        <button class="apply-btn" onclick="applyDamage()">このダメージを自分HPに適用</button>
+    </div>
+
+    <span class="section-title">1. カード選択</span>
+    <div class="card-selector" id="selector"></div>
+    <span class="section-title">2. フィールド</span>
+    <div class="field" id="field"></div>
+
+    <div class="footer-btns">
+        <button class="reset-btn" onclick="clearField()">場を清算</button>
+        <button class="reset-btn" style="background:#34495e;" onclick="resetHP()">HP全快</button>
+    </div>
+</div>
+
+<script>
+const SUITS = [
+    {s:'♥', name:'heart', cls:'s-heart', fcls:'f-heart'},
+    {s:'♦', name:'diamond', cls:'s-diamond', fcls:'f-diamond'},
+    {s:'♠', name:'spade', cls:'s-spade', fcls:'f-spade'},
+    {s:'♣', name:'club', cls:'s-club', fcls:'f-club'}
+];
+const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const RANK_ORDER = {'A':14, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13};
+const SUIT_ORDER = {'♥':0, '♦':1, '♠':2, '♣':3};
+
+let fieldCards = [];
+let currentDamage = 0; 
+
+function renderSelector() {
+    const el = document.getElementById('selector'); el.innerHTML = '';
+    SUITS.forEach((suit) => {
+        RANKS.forEach(rank => {
+            const used = fieldCards.some(c => c.rank === rank && c.suit === suit.s);
+            const btn = document.createElement('div');
+            btn.className = `card-btn ${suit.cls} ${used ? 'disabled' : ''}`;
+            btn.innerText = rank;
+            if (!used) btn.onclick = () => { fieldCards.push({id:Date.now()+Math.random(), rank, suit:suit.s, fcls:suit.fcls, jCopyRank:null}); updateAll(); };
+            el.appendChild(btn);
+        });
+    });
+}
+
+function renderField() {
+    const el = document.getElementById('field'); el.innerHTML = '';
+    const sorted = [...fieldCards].sort((a,b) => {
+        if(SUIT_ORDER[a.suit] !== SUIT_ORDER[b.suit]) return SUIT_ORDER[a.suit] - SUIT_ORDER[b.suit];
+        return RANK_ORDER[a.rank] - RANK_ORDER[b.rank];
+    });
+    sorted.forEach(c => {
+        const div = document.createElement('div'); div.className = `field-card ${c.fcls}`;
+        div.innerHTML = `<span class="card-name">${c.suit}${c.rank}</span><button class="remove-btn" onclick="removeCard(${c.id})">×</button>`;
+        if (c.rank === 'J') {
+            const sel = document.createElement('select');
+            sel.onchange = (e) => { c.jCopyRank = e.target.value; calculate(); };
+            const opts = [...new Set(fieldCards.filter(x => x.rank !== 'J').map(x => x.rank))];
+            sel.innerHTML = `<option value="">(階段用)</option>` + opts.map(o => `<option value="${o}" ${c.jCopyRank===o?'selected':''}>${o}コピー</option>`).join('');
+            div.appendChild(sel);
+        }
+        el.appendChild(div);
+    });
+}
+
+function removeCard(id) { fieldCards = fieldCards.filter(c => c.id !== id); updateAll(); }
+function clearField() { fieldCards = []; updateAll(); }
+function updateAll() { renderSelector(); renderField(); calculate(); }
+
+/**
+ * 特定の「ペアとして扱うランクのセット」を指定してスコアを計算する関数
+ */
+function getScoreForConfig(data, pCounts, potentialPairs, configBitmask, kCount, aCount, fieldCardsOriginal) {
+    let currentUsedRanksInPair = new Set();
+    potentialPairs.forEach((rank, index) => {
+        if ((configBitmask >> index) & 1) {
+            currentUsedRanksInPair.add(rank);
+        }
+    });
+
+    // 1. 素点
+    let rawTotalScore = data.reduce((s, c) => s + c.value, 0);
+
+    // 2. ペアボーナス (configで有効なランクのみ)
+    let pairBonusSum = 0;
+    let pairDetails = [];
+    currentUsedRanksInPair.forEach(r => {
+        let n = pCounts[r];
+        let m = n>=7?10:n>=6?5:n>=5?4:n>=4?3:n>=3?2:0;
+        let rankRawSum = getRankValue(r) * n;
+        let totalMult = m + kCount;
+        pairBonusSum += rankRawSum * (totalMult - 1);
+        pairDetails.push(`${r}が${n}枚：${rankRawSum}*${totalMult}倍`);
+    });
+
+    // 3. スートボーナス (Qの効果は不変)
+    let sBonusBase = 0;
+    let suitDetails = [];
+    let qCount = fieldCardsOriginal.filter(c => c.rank === 'Q').length;
+    ['♠', '♥', '♦', '♣'].forEach(s => {
+        let suitCardsNoJ = fieldCardsOriginal.filter(c => c.suit === s && c.rank !== 'J');
+        let qInThisSuit = suitCardsNoJ.filter(c => c.rank === 'Q').length;
+        let n = (suitCardsNoJ.length - qInThisSuit) + qCount;
+        let points = n>=7?100:n>=6?80:n>=5?40:n>=4?20:n>=3?10:0;
+        if (points > 0) {
+            sBonusBase += points;
+            suitDetails.push(`${s}${n}枚：${points}点`);
+        }
+    });
+
+    // 4. シークエンス (ペアとして扱っていないランクのみ使用可能)
+    const seqData = data.filter(c => !currentUsedRanksInPair.has(c.effRank));
+    const uniqueRanks = [...new Set(seqData.map(c => RANK_ORDER[c.effRank]))];
+    let ext = [...uniqueRanks];
+    uniqueRanks.forEach(r => ext.push(r+13));
+    ext.sort((a,b)=>a-b);
+    let maxS = 0, cur = 1;
+    if (ext.length > 0) {
+        for(let i=0; i<ext.length-1; i++){
+            if(ext[i+1] === ext[i]+1) cur++;
+            else { maxS = Math.max(maxS, cur); cur = 1; }
+        }
+        maxS = Math.min(Math.max(maxS, cur), uniqueRanks.length);
+    }
+    let seqB = maxS>=7?320:maxS>=6?160:maxS>=5?80:maxS>=4?40:maxS>=3?20:0;
+
+    // 5. エース倍率
+    let aMult = aCount > 0 ? 2 : 1;
+    let totalScore = rawTotalScore + pairBonusSum + (sBonusBase + seqB) * aMult;
+
+    return {
+        totalScore,
+        rawTotalScore,
+        pairDetails,
+        suitDetails,
+        maxS,
+        seqB,
+        aMult,
+        aCount,
+        usedRanksInPair: Array.from(currentUsedRanksInPair)
+    };
+}
+
+function calculate() {
+    const bdEl = document.getElementById('breakdown-display');
+    const optTag = document.getElementById('opt-tag');
+    
+    if (fieldCards.length === 0) {
+        document.getElementById('total-display').innerText = '0';
+        bdEl.innerText = 'カードを選択してください';
+        optTag.style.display = 'none';
+        return;
+    }
+
+    let kCount = fieldCards.filter(c => c.rank === 'K').length;
+    let aCount = fieldCards.filter(c => c.rank === 'A').length;
+    
+    const data = fieldCards.map(c => {
+        let isJ = (c.rank === 'J');
+        let v = (isJ && !c.jCopyRank) ? 0 : (isJ ? getRankValue(c.jCopyRank) : getRankValue(c.rank));
+        return { rank: c.rank, effRank: (isJ && c.jCopyRank) ? c.jCopyRank : c.rank, value: v };
+    });
+
+    let pCounts = {};
+    data.forEach(c => { if(c.value > 0) pCounts[c.effRank] = (pCounts[c.effRank] || 0) + 1; });
+
+    // 3枚以上あるランクを「ペア候補」とする
+    let potentialPairs = [];
+    for (let r in pCounts) {
+        if (pCounts[r] >= 3) potentialPairs.push(r);
+    }
+
+    // 全パターンのビット全探索
+    let bestResult = null;
+    let combinations = Math.pow(2, potentialPairs.length);
+
+    for (let i = 0; i < combinations; i++) {
+        let result = getScoreForConfig(data, pCounts, potentialPairs, i, kCount, aCount, fieldCards);
+        if (!bestResult || result.totalScore > bestResult.totalScore) {
+            bestResult = result;
+        }
+    }
+
+    // 結果の表示
+    document.getElementById('total-display').innerText = bestResult.totalScore;
+    optTag.style.display = potentialPairs.length > 0 ? 'inline' : 'none';
+
+    bdEl.innerHTML = `
+        <div class="bd-item"><span class="bd-label">素点：</span>${bestResult.rawTotalScore}点</div>
+        <div class="bd-item"><span class="bd-label">ペア：</span><span class="bd-content">
+            ${bestResult.pairDetails.length > 0 ? bestResult.pairDetails.join('　') : 'なし'}　
+            <span style="font-size:0.7rem; opacity:0.8;">*K:${kCount}枚所持</span>
+        </span></div>
+        <div class="bd-item"><span class="bd-label">スート：</span><span class="bd-content">
+            ${bestResult.suitDetails.length > 0 ? bestResult.suitDetails.join('　') : 'なし'}
+        </span></div>
+        <div class="bd-item"><span class="bd-label">シークエンス：</span><span class="bd-content">
+            最大：${bestResult.maxS}連番 <span style="font-size:0.7rem; opacity:0.7;">(ペア使用:${bestResult.usedRanksInPair.length > 0 ? bestResult.usedRanksInPair.join(',') : '無'} を除く)</span>　${bestResult.seqB}点　A所持 (${bestResult.aCount > 0 ? '有：倍率x2' : '無'})
+        </span></div>
+    `;
+
+    // ダメージ計算
+    let enemy = parseInt(document.getElementById('enemy-score').value) || 0;
+    let lap = parseInt(document.getElementById('lap').value) || 1;
+    let diff = bestResult.totalScore - enemy;
+    const dEl = document.getElementById('damage-display');
+    if (diff > 0) {
+        currentDamage = Math.ceil(diff / 10) * lap;
+        dEl.innerText = `勝利：相手に ${currentDamage} ダメージ！`;
+        dEl.style.color = 'var(--win)';
+    } else if (diff < 0) {
+        currentDamage = -Math.ceil(Math.abs(diff) / 10) * lap;
+        dEl.innerText = `敗北：${Math.abs(currentDamage)} のダメージを受ける`;
+        dEl.style.color = 'var(--lose)';
+    } else {
+        currentDamage = 0;
+        dEl.innerText = `引き分け：お互い 0 ダメージ`;
+        dEl.style.color = 'var(--draw)';
+    }
+}
+
+function applyDamage() {
+    let myHPValue = parseInt(document.getElementById('my-hp').innerText);
+    if (currentDamage < 0) {
+        myHPValue = Math.max(0, myHPValue - Math.abs(currentDamage));
+        document.getElementById('my-hp').innerText = myHPValue;
+        if (myHPValue <= 0) alert("敗北... GAME OVER");
+    }
+}
+
+function resetHP() {
+    document.getElementById('my-hp').innerText = document.getElementById('my-hp-init').value;
+}
+function getRankValue(r) { return ['J','Q','K','A'].includes(r)?10:parseInt(r); }
+updateAll();
+</script>
+</body>
+</html>
